@@ -13,3 +13,8 @@ PIP:
 - pyqt5-tools (PyQt5-sip pyqt5-plugins pyqt5-tools PyQt5-Qt5)
 - pyqtgraph 
 - QtPy
+
+Commands
+=========
+
+cp /home/surfcat/machines/surf-furnaceroom-01/start_gui /home/surfcat/Desktop

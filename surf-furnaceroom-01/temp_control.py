@@ -1,5 +1,5 @@
+#! /usr/bin/python3
 # pylint: disable=E1101, E0611
-#! /usr/bin/python
 """QtDesigner test"""
 from __future__ import print_function
 import sys
@@ -13,9 +13,9 @@ import json
 from PyQt5 import QtCore, QtWidgets
 #import PyQt5.QtGui as pg
 #import PyQt5.QtWidgets as pw
-from temperature_controller_gui_pyqt5 import Ui_temp_control, _translate
+from temperature_controller_gui import Ui_temp_control, _translate
 from PyExpLabSys.common.plotters import DataPlotter
-from PyExpLabSys.common.supported_versions import python2_only
+#from PyExpLabSys.common.supported_versions import python2_only
 from string_to_math import evaluate_string
 import temperature_controller_config as config
 #python2_only(__file__)

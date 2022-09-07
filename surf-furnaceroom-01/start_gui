@@ -1,0 +1,3 @@
+#!/usr/bin/bash
+cd /home/surfcat/machines/surf-furnaceroom-01
+python3 temp_control.py
