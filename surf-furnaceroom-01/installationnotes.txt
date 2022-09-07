@@ -1,0 +1,15 @@
+Reinstalled on new computer start september 2022.
+Scripts in machines/furnaceroom converted from PyQt4 to PyQt5 along with minor upgrades
+like tooltips, disabling/enabling buttons to make it more user friendly.
+
+Non-PyExpLabSys dependables
+===========================
+APT:
+- python3-pyqt5
+
+PIP:
+- PyQt5
+- qt5-tools (qt5-applications)
+- pyqt5-tools (PyQt5-sip pyqt5-plugins pyqt5-tools PyQt5-Qt5)
+- pyqtgraph 
+- QtPy
