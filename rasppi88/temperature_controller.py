@@ -1,9 +1,11 @@
 """ Temperature controller """
+import logging
 import time
 import threading
 import socket
 import curses
-import pickle
+#import pickle
+import json
 import wiringpi as wp
 import PyExpLabSys.auxiliary.pid as PID
 import credentials
@@ -11,9 +13,11 @@ from PyExpLabSys.common.sockets import DateDataPullSocket
 from PyExpLabSys.common.sockets import DataPushSocket
 from PyExpLabSys.common.database_saver import ContinuousDataSaver
 from PyExpLabSys.common.value_logger import LoggingCriteriumChecker
-from PyExpLabSys.common.supported_versions import python2_and_3
-python2_and_3(__file__)
 
+# Set up debug logging
+FORMAT = '%(asctime)s -- %(name)s:%(message)s'
+logging.basicConfig(filename="log.temperature_controller", format=FORMAT, level=logging.WARNING)
+LOGGER = logging.getLogger('temperature_controller')
 
 class CursesTui(threading.Thread):
     """ Text user interface for furnace heating control """
@@ -22,6 +26,7 @@ class CursesTui(threading.Thread):
         self.start_time = time.time()
         self.quit = False
         self.hc = heating_class
+        self.message = ''
         self.screen = curses.initscr()
         curses.noecho()
         curses.cbreak()
@@ -32,13 +37,18 @@ class CursesTui(threading.Thread):
     def run(self):
         while not self.quit:
             self.screen.addstr(3, 2, 'Running')
+            if self.hc.isAlive():
+                self.message = self.hc.pc.msg
+            else:
+                self.message = 'Controller dead!'
+            self.screen.addstr(5, 2, self.message)
             val = self.hc.pc.setpoint
             self.screen.addstr(9, 40, "Setpoint: {0:.2f}C  ".format(val))
             val = self.hc.pc.temperature
             try:
-                self.screen.addstr(9, 2, "Temeperature: {0:.1f}C  ".format(val))
+                self.screen.addstr(9, 2, "Temperature: {0:.1f}C  ".format(val))
             except (ValueError, TypeError):
-                self.screen.addstr(9, 2, "Temeperature: -         ")
+                self.screen.addstr(9, 2, "Temperature: {}         ".format(val))
             val = self.hc.dutycycle
             self.screen.addstr(10, 2, "Wanted dutycycle: {0:.5f} ".format(val))
             val = self.hc.pc.pid.setpoint
@@ -46,12 +56,12 @@ class CursesTui(threading.Thread):
             val = self.hc.pc.pid.int_err
             self.screen.addstr(12, 2, "PID-error: {0:.3f} ".format(val))
             val = self.hc.pc.pid.pid_p * self.hc.pc.pid.error
-            self.screen.addstr(11, 40, "PID-P: {0:.6f}    ".format(val))
+            self.screen.addstr(11, 40, "PID-P term: {0:.6f}    ".format(val))
             val = self.hc.pc.pid.pid_i * self.hc.pc.pid.int_err
-            self.screen.addstr(12, 40, "PID-I: {0:.6f}    ".format(val))
+            self.screen.addstr(12, 40, "PID-I term: {0:.6f}    ".format(val))
 
             val = time.time() - self.start_time
-            self.screen.addstr(15, 2, "Runetime: {0:.0f}s".format(val))
+            self.screen.addstr(15, 2, "Runtime: {0:.0f}s".format(val))
 
             key_val = self.screen.getch()
             if key_val == ord('q'):
@@ -80,19 +90,27 @@ class PowerCalculatorClass(threading.Thread):
         self.datasocket = datasocket
         self.pushsocket = pushsocket
         self.power = 0
-        self.setpoint = 25
+        self.setpoint = 0
         self.pid = PID.PID(pid_p=0.013, pid_i=0.000015, p_max=1)
         self.update_setpoint(self.setpoint)
         self.quit = False
+        self.msg = '                                '
+        self.last_time = -2
+        self.time = -1
         self.temperature = None
         self.ramp = None
+        LOGGER.info('PowerCalculatorClass init')
 
     def read_power(self):
         """ Return the calculated wanted power """
         return self.power
 
     def update_setpoint(self, setpoint=None, ramp=0):
-        """ Update the setpoint """
+        """ Update the setpoint
+        ´ramp´: Start of ramp sequence (time.time() format)
+        ´setpoint´: The setpoint (Celcius) to apply manually
+        If both ramp and setpoint are specified, the ramp sequence takes priority!
+        """
         if ramp > 0:
             setpoint = self.ramp_calculator(time.time()-ramp)
         self.setpoint = setpoint
@@ -105,6 +123,7 @@ class PowerCalculatorClass(threading.Thread):
         Also includes a default ramp for testing"""
         if self.ramp is None:
             self.ramp = {}
+            self.ramp['init'] = True
             self.ramp['temp'] = {}
             self.ramp['time'] = {}
             self.ramp['step'] = {}
@@ -132,34 +151,84 @@ class PowerCalculatorClass(threading.Thread):
         self.ramp['time'][len(self.ramp['time'])] = 999999999
         self.ramp['time'][-1] = 0
         self.ramp['temp'][-1] = 0
+
+        # Figure out which line we're in
         i = 0
         while (current_time > 0) and (i < len(self.ramp['time'])):
             current_time = current_time - self.ramp['time'][i]
             i = i + 1
+
+        # Get the current time (within the line in the temperature program)
         i = i - 1
         current_time = current_time + self.ramp['time'][i]
-        if self.ramp['step'][i] is True:
+        if self.ramp['step'][i] is True: # Line is a step function
             return_value = self.ramp['temp'][i]
-        else:
+        else:                            # Line is a ramp function
             time_frac = current_time / self.ramp['time'][i]
             return_value = self.ramp['temp'][i-1] + time_frac * (self.ramp['temp'][i] -
                                                                  self.ramp['temp'][i-1])
         return return_value
 
     def run(self):
+        LOGGER.info('PowerCalculatorClass start')
+        ttl = 0
         data_temp = b'fr307_furnace_1_T#raw'
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(1)
         ramp_time = 0
+        paused = False
         #ramp_time = time.time()
         sp_updatetime = 0
         ramp_updatetime = 0
+        log_counter = 0
+        log_interval = 50
         while not self.quit:
+            LOGGER.debug('PowerCalculatorClass beginning of while loop...')
             sock.sendto(data_temp, ('localhost', 9001))
-            received = sock.recv(1024).decode()
-            self.temperature = float(received[received.find(',') + 1:])
+            socketerror = False
+            try:
+                received = sock.recv(1024).decode()
+                received = received.split(',')
+                self.msg = '                                '
+            except socket.timeout:
+                self.msg = 'ERR: Temperature socket down'
+                self.temperature = -50
+                self.datasocket.set_point_now('temperature', self.temperature)
+                self.power = 0
+                time.sleep(0.5)
+                socketerror = True
+                continue
+            if received[0] == 'OLD_DATA':
+                old_data = True
+            else:
+                old_data = False
+            try:
+                self.last_time = float(self.time)
+                self.time = float(received[0])
+                self.temperature = float(received[1])
+            except ValueError:
+                pass
+            except Exception as e:
+                LOGGER.warning('Package received: {}'.format(repr(received)))
+                LOGGER.warning(e)
+            #self.temperature = float(received[received.find(',') + 1:])
+            if (self.time == self.last_time) or old_data:
+                ttl += 1
+                if ttl > 200:
+                    LOGGER.error('Data from pull socket TOO OLD! Breaking out of while loop.')
+                    self.msg = 'ERR: Stopped because of old temperature feed.'
+                    break
+                time.sleep(0.1)
+                continue
+            ttl = 0
+            log_counter += 1
+            if log_counter > log_interval:
+                LOGGER.info('Time/Temperature from datedatasocket: ({}/{})'.format(self.time, self.temperature))
+                log_counter = 0
+
             self.datasocket.set_point_now('temperature', self.temperature)
             self.power = self.pid.wanted_power(self.temperature)
+
 
             #  Handle the setpoint from the network
             try:
@@ -174,34 +243,43 @@ class PowerCalculatorClass(threading.Thread):
 
             #  Handle the ramp from the network
             try:
-                ramp = self.pushsocket.last[1]['ramp']
-                new_update = self.pushsocket.last[0]
+                ramp = self.pushsocket.last[1]['ramp'] # "ramp" string or dict
+                new_update = self.pushsocket.last[0] # time of last command
             except (TypeError, KeyError): #  Ramp has not yet been set
                 ramp = None
-            if ramp == 'stop':
+            if ramp == 'stop': # Last command was stop button being pressed
                 ramp_time = 0
-            if (ramp is not None) and (ramp != 'stop'):
-                try: # Python 3
-                    # pylint: disable=unexpected-keyword-arg
-                    ramp = pickle.loads(ramp.encode('ascii'),
-                                        fix_imports=True)
-                except TypeError: # Python 2
-                    ramp = pickle.loads(ramp)
+                self.stop()
+            elif ramp == 'pause':
+                paused = not paused
+            elif (ramp is not None) and (ramp != 'stop'):
                 if new_update > ramp_updatetime:
+                    # Convert JSON ramp format to index
+                    index_list = list(ramp['time'].keys())
+                    if isinstance(index_list[0], str):
+                        for key in ['time', 'temp', 'step']:
+                            for i in index_list:
+                                ramp[key][int(i)] = ramp[key][i]
+                                del ramp[key][i]
+                    # Update setpoint / ramp settings
                     ramp_updatetime = new_update
                     self.ramp = ramp
-                    ramp_time = time.time()
+                    if ramp['init']:
+                        ramp_time = time.time()
+                    paused = False
                 else:
                     pass
 
-            if ramp_time > 0:
+            if ramp_time > 0 and not paused:
                 self.update_setpoint(ramp=ramp_time)
             time.sleep(0.5)
+        LOGGER.info('PowerCalculatorClass stop!')
         self.stop()
 
     def stop(self):
         """On stop set the setpoint back to a low temperature"""
-        self.update_setpoint(20)
+        # Make sure it is below room temperature
+        self.update_setpoint(0)
 
 class HeaterClass(threading.Thread):
     """ Do the actual heating """
@@ -228,7 +306,7 @@ class HeaterClass(threading.Thread):
             for name, value in [('dutycycle', self.dutycycle),
                                ('pid_p', self.pc.pid.proportional_contribution()),
                                ('pid_i', self.pc.pid.integration_contribution())]:
-                self.datasocket.set_point_now(name, value)
+                self.pc.datasocket.set_point_now(name, value)
                 if self.criterium_checker.check(prefix+name, value):
                     self.db_logger.save_point_now(prefix+name, value)
             name, value = 'S', self.pc.setpoint
@@ -272,11 +350,12 @@ def main():
     criterium_checker = LoggingCriteriumChecker(
         codenames=codenames,
         types=['lin']*len(codenames),
-        criteria=[0.1, 0.99, 1., 1.],
-        time_outs=[60, 600, 300, 300],
+        criteria=[0.02, 1., 1., 1.],
+        time_outs=[60, 120, 300, 300],
         )
     
     heater = HeaterClass(power_calculator, datasocket, db_logger, criterium_checker)
+    heater.daemon = True ###
     heater.start()
 
     tui = CursesTui(heater)
