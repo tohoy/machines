@@ -1,0 +1,8 @@
+<autostart>
+  <name>RASPPI100_AUTOSTART</name> <!-- no spaces -->
+  <session>
+    <startdelay>10</startdelay>
+    <command>a; python3 turbo_logger.py rasppi100</command>
+    <name>Turbo Controller</name>
+  </session>
+</autostart>
