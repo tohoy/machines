@@ -17,6 +17,7 @@ Sections:
 git         Add common git aliases
 autostart   Setup autostart cronjob
 settings    Link in the PyExpLabSys settings file
+bash	    Add settings to .bashrc
 
 all         All of the above
 "
@@ -128,4 +129,9 @@ if [ $1 == "settings" ] || [ $1 == "all" ];then
         cp ~/machines/bootstrap/user_settings.yaml ~/.config/PyExpLabSys/user_settings.yaml
     fi
     echogood "+++++> DONE"
+fi
+
+if [ $1 == "bash" ] || [ $1 == "all" ];then
+    bashrc_addition="export PYTHONPATH=$PYTHONPATH:$HOME/machines"
+    echo "$bashrc_addition" >> ~/.bashrc
 fi
