@@ -1,0 +1,5 @@
+id: b307-955
+purpose: Gas alarm - 307 basement
+
+This raspberry pi is responsible for logging the gas alarms in building 307 basement. 
+Located in room 955.
