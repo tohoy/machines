@@ -2,9 +2,16 @@
 
 """Barcode scanner module"""
 
-from bar_database import *  # pylint: disable=wildcard-import,unused-wildcard-import
+from MySQLdb import OperationalError
+from bar_database import *
 
-BAR_DATABASE = BarDatabase(host='servcinf-sql', port=3306)
+try:
+    BAR_DATABASE = BarDatabase(host='servcinf-sql.fysik.dtu.dk', port=3306)
+    print('Using direct database connection')
+except OperationalError:
+    # Assume tunnel
+    BAR_DATABASE = BarDatabase(host='127.0.0.1', port=9000)
+    print('Using existing tunnel to connect to database')
 
 
 def read_barcode():

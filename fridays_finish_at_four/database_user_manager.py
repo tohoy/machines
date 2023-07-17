@@ -5,13 +5,28 @@
 from bar_database import * # pylint: disable=wildcard-import,unused-wildcard-import
 from nfc_reader import ThreadedNFCReader
 import time
+from MySQLdb import OperationalError
+from ssh_tunnel import create_tunnel, close_tunnel
 
 #class UserDatabase(object):
 #    """Class for communicating with database (users)"""
-
-
-DB = BarDatabase(host='servcinf-sql', port=3306)
-# XXX the use of "with DB.connection:" works in MySQLdb.__version__ < 1.4.x
+DB = None
+tunnel = False
+try:
+    # Assume wired connection
+    DB = BarDatabase(host='servcinf-sql.fysik.dtu.dk', port=3306)
+    print(1)
+except OperationalError:
+    try:
+        # Assume existing tunnel
+        DB = BarDatabase(host='127.0.0.1', port=9000)
+        print(2)
+    except OperationalError:
+        # Create tunnel
+        tunnel = True
+        if create_tunnel():
+            DB = BarDatabase(host='127.0.0.1', port=9000)
+            print(2)
 
 def show_user_list(user_id):
     with DB.connection:
@@ -225,3 +240,6 @@ if __name__ == '__main__':
             # Complete transaction
             make_deposit(user_id, user_barcode, transaction_type, amount)
             print('Transaction successful')
+
+    if tunnel:
+        close_tunnel()

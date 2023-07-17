@@ -15,7 +15,7 @@ from cowsay import Cowsay
 from nfc_reader import ThreadedNFCReader
 
 
-__version__ = 2.318
+__version__ = 2.4
 COWSAY = Cowsay(cow='tux', width=34)
 STANDARDTEXT = "Welcome to the Friday Bar. Please scan your barcode!"
 ALTTEXT = "Welcome to Wismann's PhD Dinner. Please scan your barcode!"
@@ -90,7 +90,7 @@ class Bar101(object):
         status_string = "Demon connection attempt succeeded".format(attempt_number)
         self.picaso.put_string(status_string)
 
-        # Create ssh tunnel
+        # (Always) Create ssh tunnel routing through localhost
         self.picaso.move_cursor(3, 0)
         if create_tunnel():
             self.picaso.put_string('Created SSH tunnel')
@@ -341,13 +341,22 @@ def main():
             bar101.clean_up()
             bar101.picaso.close()
             close_tunnel()
-            break
+            raise KeyboardInterrupt
         except:
             bar101.clean_up()
+            bar101.picaso.close()
             close_tunnel()
             raise
 
     close_tunnel()
 
 if __name__ == '__main__':
-    main()
+    while True:
+        try:
+            main()
+        except OperationalError:
+            print('Tunnel probably collapsed - restarting...')
+            time.sleep(5)
+            continue
+        except KeyboardInterrupt:
+            break
