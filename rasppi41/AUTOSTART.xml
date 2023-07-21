@@ -1,0 +1,8 @@
+<autostart>
+  <name>RASPPI41_AUTOSTART</name> <!-- no spaces -->
+  <session>
+    <startdelay>5</startdelay>
+    <command>python gasmonitor.py</command>
+    <name>Gas Alarm Monitor</name>
+  </session>
+</autostart>
