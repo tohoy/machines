@@ -286,6 +286,6 @@ class GasAlarmMonitor(object):
 
     def _wake_mysql(self):
         """Send a ping via the connection and re-initialize the cursor"""
-        pass
-        ###self.db_connection.ping(True)
-        ###self.db_cursor = self.db_connection.cursor()
+        # This should prevent an OperationalError(MySQL server has gone away) after 24 hours
+        self.db_logger.connection.ping(True)
+        self.db_logger.cursor = self.db_logger.connection.cursor()
