@@ -156,12 +156,11 @@ class GasAlarmMonitor(object):
         # Each iteration takes about 5 sec
         while True:
             # Log detectors
-            #for detector_num in self.detector_numbers:
-            for detector_num in self.codenames.keys(): ###
+            for detector_num in self.codenames.keys():
                 self.log_detector(detector_num)
 
             # Log Vortex unit status (force log every 24 hours)
-            #self.log_central_unit()###
+            self.log_central_unit()
 
     def log_detector(self, detector_num):
         """Get the levels from one detector and log if required"""
