@@ -1,5 +1,4 @@
-*/credentials.py
-*/sql_credentials.py
+*/*credentials*.py
 */*.log
 */*.log.1
 */*.log.2

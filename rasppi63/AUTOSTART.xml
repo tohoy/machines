@@ -2,7 +2,12 @@
   <name>RASPPI63_AUTOSTART</name> <!-- no spaces -->
   <session>
     <startdelay>5</startdelay>
-    <command>python3 datalogger.py</command>
+    <command>python datalogger.py</command>
     <name>Temperature logger small office</name>
+  </session>
+  <session>
+    <startdelay>10</startdelay>
+    <command>python ups_logger.py</command>
+    <name>UPS logger</name>
   </session>
 </autostart>

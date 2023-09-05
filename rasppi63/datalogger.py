@@ -11,13 +11,13 @@ import PyExpLabSys.drivers.honeywell_6000 as honeywell_6000
 import PyExpLabSys.common.utilities
 from PyExpLabSys.common.supported_versions import python2_and_3
 import credentials
-# PyExpLabSys.common.utilities.ERROR_EMAIL = 'robert.jensen@fysik.dtu.dk'
+# PyExpLabSys.common.utilities.ERROR_EMAIL = 'jejsor@fysik.dtu.dk'
 python2_and_3(__file__)
 
 LOGGER = get_logger('Small office temperature logger', level='WARN', file_log=True,
                     file_name='temp_control.log', terminal_log=False, email_on_warnings=False)
 
-LOGGER.warn('Program started')
+LOGGER.warning('Program started')
 
 
 class Reader(threading.Thread):
@@ -47,6 +47,8 @@ class Reader(threading.Thread):
         while not self.quit:
             self.ttl = 50
             self.humidity, self.temperature = self.honeywell.read_values()
+            print(self.humidity, self.temperature)
+            time.sleep(0.2)
 
 def main():
     """ Main function """
@@ -77,7 +79,7 @@ def main():
                                     measurement_codenames=codenames)
     db_logger.start()
 
-    while reader.isAlive():
+    while reader.is_alive():
         time.sleep(1)
         for name in codenames:
             value = loggers[name].read_value()
@@ -93,6 +95,7 @@ if __name__ == '__main__':
         try:
             main()
         except OSError as exception:
+            print('!!!')
             LOGGER.warning("Got '{}', restarting in 300s".format(exception))
             time.sleep(300)
         except KeyboardInterrupt:
