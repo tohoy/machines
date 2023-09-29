@@ -11,13 +11,17 @@ usage="This is the SurfCat Linux bootstrap script
 
     USAGE: bootstrap_linux.bash SECTION
 
-Where SECTION is the part of the bootstrap script that you want to run, listed below. If the value of \"all\" is given all section will be run. NOTE you can only supply one argument:
+Where SECTION is the part of the bootstrap script that you want to run, listed below. If the value of \"all\" is given all section will be run - this should be done for a fresh install. NOTE you can only supply one argument:
 
 Sections:
+bash        Edit PATH and PYTHONPATH in .bashrc to make PyExpLabSys scripts
+            runnable and PyExpLabSys importable. Plus add bash aliasses for
+            most common commands including apt commands.
 git         Add common git aliases
+install     Install commonly used packages e.g openssh-server
+pip         Install extra Python packages with pip
 autostart   Setup autostart cronjob
-settings    Link in the PyExpLabSys settings file
-bash	    Add settings to .bashrc
+settings    Link in the SurfCat PyExpLabSys settings file
 
 all         All of the above
 "
@@ -52,68 +56,28 @@ if [ $# -eq 0 ] || [ $# -gt 1 ];then
     exit
 fi
 
+if [ $1 == "bash" ] || [ $1 == "all" ];then
+    $HOME/PyExpLabSys/bootstrap/bootstrap_linux.bash bash
+fi
+
 # Git section
 if [ $1 == "git" ] || [ $1 == "all" ];then
-    echo
-    echobold "===> SETTING UP GIT"
-    echoblue "---> Setting up git aliases"
-    echoblue "----> ci='commit -v'"
-    git config --global alias.ci 'commit -v'
-    echoblue "----> pr='pull --rebase'"
-    git config --global alias.pr 'pull --rebase'
-    echoblue "----> lol='log --graph --decorate --pretty=oneline --abbrev-commit'"
-    git config --global alias.lol 'log --graph --decorate --pretty=oneline --abbrev-commit'
-    echoblue "----> ba='branch -a'"
-    git config --global alias.ba 'branch -a'
-    echoblue "----> st='status'"
-    git config --global alias.st 'status'
-    echoblue "----> cm='commit -m'"
-    git config --global alias.cm 'commit -m'
-    echoblue "---> Make git use colors"
-    git config --global color.ui true
-    echoblue "---> Set default push setting"
-    git config --global push.default matching
-    echogood "+++++> DONE"
+    $HOME/PyExpLabSys/bootstrap/bootstrap_linux.bash git
+fi
+
+# Install packages
+if [ $1 == "install" ] || [ $1 == "all" ];then
+    $HOME/PyExpLabSys/bootstrap/bootstrap_linux.bash install
+fi
+
+# Install extra packages with pip
+if [ $1 == "pip" ] || [ $1 == "all" ];then
+    $HOME/PyExpLabSys/bootstrap/bootstrap_linux.bash pip
 fi
 
 # Setup autostart cronjob
 if [ $1 == "autostart" ] || [ $1 == "all" ];then
-    echo
-    echobold "===> SETTINGS UP AUTOSTART CRONJOB"
-
-    # Form path of autostart script
-    autostartpath="/home/$USER/PyExpLabSys/bin/autostart.py" # not friendly to Windows
-    cronline="@reboot SHELL=/bin/bash BASH_ENV=$HOME/.bashrc \
-/usr/bin/env python $autostartpath 2>&1 | \
-/usr/bin/logger -t cinfautostart"
-
-    echoblue "Using autostart path: $autostartpath"
-
-    # Check if there has been installed cronjobs before
-    crontab -l > /dev/null
-    if [ $? -eq 0 ];then
-        crontab -l | grep $autostartpath > /dev/null
-        if [ $? -eq 0 ];then
-            echoblue "Autostart cronjob already installed"
-        else
-            crontab -l | { cat; echo $cronline; } | crontab -
-            echoblue "Installed autostart cronjob"
-        fi
-    else
-        cronlines="# Output of the crontab jobs (including errors) is sent through\n\
-# email to the user the crontab file belongs to (unless redirected).\n\
-#\n\
-# For example, you can run a backup of all your user accounts\n\
-# at 5 a.m every week with: # 0 5 1 tar -zcf /var/backups/home.tgz /home/\n\
-#\n\
-# For more information see the manual pages of crontab(5) and cron(8)\n\
-#\n\
-# m h dom mon dow command\n\
-$cronline"
-        crontab -l | { cat; echo -e $cronlines; } | crontab -
-        echoblue "Had no cronjobs. Installed with standard header."
-    fi
-    echogood "+++++> DONE"
+    $HOME/PyExpLabSys/bootstrap/bootstrap_linux.bash autostart
 fi
 
 # Setup settings file for PyExpLabSys
@@ -129,9 +93,4 @@ if [ $1 == "settings" ] || [ $1 == "all" ];then
         cp ~/machines/bootstrap/user_settings.yaml ~/.config/PyExpLabSys/user_settings.yaml
     fi
     echogood "+++++> DONE"
-fi
-
-if [ $1 == "bash" ] || [ $1 == "all" ];then
-    bashrc_addition="export PYTHONPATH=$PYTHONPATH:$HOME/machines"
-    echo "$bashrc_addition" >> ~/.bashrc
 fi
