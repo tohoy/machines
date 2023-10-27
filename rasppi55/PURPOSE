@@ -1,1 +1,5 @@
-Valve control for Microreactor NG
+id: OG sniffer
+purpose: Valve control box
+
+Controls the valves for the original sniffer setup (Trimarco build).
+Run from inside screen in window 0: python socket_server.py
