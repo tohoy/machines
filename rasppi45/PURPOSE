@@ -1,0 +1,5 @@
+id: OG sniffer
+purpose: PC2 server
+
+Controls the pressure controller at the outlet (PC2).
+Run from inside screen in window 0: python socket_server.py

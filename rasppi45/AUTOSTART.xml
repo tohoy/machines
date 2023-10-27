@@ -1,0 +1,8 @@
+<autostart>
+  <name>AUTOSTART</name>
+  <session>
+    <startdelay>1</startdelay>
+    <command>python socket_server.py</command>
+    <name>PC2 server</name>
+  </session>
+</autostart>
