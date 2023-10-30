@@ -1,2 +1,5 @@
-id: sniffer
-purpose: control BROOKS 5866 pressure controller of sniffer setup
+id: OG sniffer
+purpose: PC1 server
+
+Controls BROOKS 5866 pressure controller (inlet) of sniffer setup. Run
+command from inside screen in window 0: python analog_mfc.py
