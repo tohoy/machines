@@ -1,0 +1,5 @@
+id: OG sniffer
+purpose: Pressure logger
+
+Reads the Agilent XGS600 to log and advertise pressures. Run from inside
+screen in window 0: python datalogger.py

@@ -1,5 +1,4 @@
 """ Pressure and temperature logger """
-from __future__ import print_function
 import threading
 import time
 import logging
@@ -9,10 +8,7 @@ from PyExpLabSys.common.database_saver import ContinuousDataSaver
 from PyExpLabSys.common.value_logger import ValueLogger
 import PyExpLabSys.drivers.xgs600 as xgs600
 import PyExpLabSys.drivers.kjlc_pressure_gauge as kjlc
-from PyExpLabSys.common.supported_versions import python2_and_3
 import credentials
-python2_and_3(__file__)
-
 
 class PressureReader(threading.Thread):
     """ Sniffer pirani reader """
@@ -82,7 +78,7 @@ def main():
     logging.basicConfig(filename="logger.txt", level=logging.ERROR)
     logging.basicConfig(level=logging.ERROR)
 
-    xgs_port = '/dev/serial/by-id/usb-1a86_USB2.0-Ser_-if00-port0'
+    xgs_port = '/dev/serial/by-id//usb-Prolific_Technology_Inc._USB-Serial_Controller_D-if00-port0'
     xgs_instance = xgs600.XGS600Driver(xgs_port)
     print(xgs_instance.read_all_pressures())
 
@@ -130,16 +126,20 @@ def main():
                                     measurement_codenames=codenames)
     db_logger.start()
 
-    while xgs_pressure.isAlive():
-        time.sleep(0.25)
-        for name in codenames:
-            value = loggers[name].read_value()
-            livesocket.set_point_now(name, value)
-            socket.set_point_now(name, value)
-            if loggers[name].read_trigged():
-                print(name, value)
-                db_logger.save_point_now(name, value)
-                loggers[name].clear_trigged()
+    while xgs_pressure.is_alive():
+        try:
+            time.sleep(0.25)
+            for name in codenames:
+                value = loggers[name].read_value()
+                livesocket.set_point_now(name, value)
+                socket.set_point_now(name, value)
+                if loggers[name].read_trigged():
+                    print(name, value)
+                    db_logger.save_point_now(name, value)
+                    loggers[name].clear_trigged()
+        except KeyboardInterrupt:
+            time.sleep(0.25)
+            xgs_pressure.quit = True
 
 if __name__ == '__main__':
     main()

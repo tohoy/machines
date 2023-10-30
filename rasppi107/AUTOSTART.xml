@@ -1,0 +1,8 @@
+<autostart>
+  <name>RASPPI107_AUTOSTART</name> <!-- no spaces -->
+  <session>
+    <startdelay>3</startdelay>
+    <command>python datalogger.py</command>
+    <name>Pressure logger</name>
+  </session>
+</autostart>
