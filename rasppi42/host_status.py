@@ -27,7 +27,7 @@ LOGGER = get_logger('Host Checker', level='debug', file_log=True,
                     file_max_bytes=104857, file_backup_count=5)
 
 def host_status(hostname, port):
-    """ Report if a host i available on the network """
+    """ Report if a host is available on the network """
     host_is_up = True
 
     if port != '3389':
@@ -208,7 +208,8 @@ class CheckHost(threading.Thread):
                 attr = json.loads(host[5])
             except TypeError: # Happens if attr is empty
                 attr = {}
-                attr['git'] = ''
+                attr['git_pyexplabsys'] = ''
+                attr['git_machines'] = ''
                 attr['model'] = ''
                 attr['python_version'] = ''
                 attr['apt_up'] = ''
@@ -229,9 +230,18 @@ class CheckHost(threading.Thread):
                 uptime_val = {}
                 uptime_val['up'] = ''
                 uptime_val['load'] = ''
-                uptime_val['git'] = attr['git']
+                try:
+                    uptime_val['git_pyexplabsys'] = attr['git_pyexplabsys']
+                    uptime_val['git_machines'] = attr['git_machines']
+                except KeyError: # Legacy support
+                    uptime_val['git_pyexplabsys'] = attr['git']
+                    uptime_val['git_machines'] = 'None'
                 uptime_val['host_temperature'] = ''
                 uptime_val['model'] = attr['model']
+                try:
+                    uptime_val['apt_up'] = attr['apt_up']
+                except KeyError:
+                    uptime_val['apt_up'] = ''
                 uptime_val['python_version'] = attr['python_version']
 
             uptime_val['db_id'] = host[0]
@@ -280,7 +290,7 @@ def main():
 
     for result in results:
         hosts.put(result)
-    LOGGER.debug('Size of hosts-selct: ' + str(hosts.qsize()))
+    LOGGER.debug('Size of hosts-select: ' + str(hosts.qsize()))
     results = queue.Queue()
 
     host_checkers = {}
