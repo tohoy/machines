@@ -11,6 +11,7 @@ except ImportError:
     import queue
 import json
 import MySQLdb
+from PyExpLabSys.common.system_status import SystemStatus
 from PyExpLabSys.common.utilities import get_logger
 from PyExpLabSys.common.supported_versions import python2_and_3
 import credentials
@@ -19,6 +20,7 @@ python2_and_3(__file__)
 default_user = credentials.host['default_user']
 default_passwd = credentials.host['default_passwd']
 
+SELF = socket.gethostname()
 LOGGER = get_logger('Host Checker', level='debug', file_log=True,
                     file_name='host_checker.log', terminal_log=True,
                     email_on_warnings=False, email_on_errors=False,
@@ -47,12 +49,34 @@ def uptime(hostname, port, username=default_user, password=default_passwd):
     return_value = {}
     return_value['up'] = ''
     return_value['load'] = ''
-    return_value['git'] = ''
+    return_value['git_pyexplabsys'] = ''
+    return_value['git_machines'] = ''
     return_value['host_temperature'] = ''
     return_value['python_version'] = ''
     return_value['model'] = ''
     return_value['os_version'] = ''
-    if port == 22: # SSH
+    if hostname == SELF:
+        status = SystemStatus()
+        return_value['up'] = str(int(int(status.uptime()['uptime_sec']) / (60*60*24)))
+        return_value['load'] = status.load_average()['15m']
+        apt_up_time= status.last_apt_cache_change_unixtime()
+        return_value['apt_up'] = datetime.datetime.fromtimestamp(apt_up_time).strftime('%Y-%m-%d')
+        gittime = status.last_git_fetch_unixtime()
+        try:
+            return_value['git_pyexplabsys'] = datetime.datetime.fromtimestamp(gittime['PyExpLabSys']).strftime('%Y-%m-%d')
+            return_value['git_machines'] = datetime.datetime.fromtimestamp(gittime['machines']).strftime('%Y-%m-%d')
+        except TypeError:
+            # Only for legacy purposes
+            return_value['git_pyexplabsys'] = datetime.datetime.fromtimestamp(gittime).strftime('%Y-%m-%d')
+            return_value['git_machines'] = None
+        return_value['host_temperature'] = status.rpi_temperature()
+        return_value['python_version'] = status.python_version()
+        return_value['model'] = status.rpi_model()
+        return_value['os_version'] = status.os_version()
+        return return_value
+
+    # Specifically use SSH
+    if port == 22:
         uptime_string = subprocess.check_output(["sshpass",
                                                  "-p",
                                                  password,
@@ -93,10 +117,32 @@ def uptime(hostname, port, username=default_user, password=default_passwd):
         except (KeyError, UnboundLocalError):
             pass
 
+        # Legacy compatibility: if os_version not available, then SSH to obtain it
         try:
             os_version = system_status['os_version']
+            ret = True
         except (KeyError, UnboundLocalError):
-            os_version = ''
+            ret = False
+        if not ret:
+            try:
+                os_string = subprocess.check_output([
+                    "sshpass",
+                    "-p",
+                    password,
+                    "ssh",
+                    '-o LogLevel=quiet',
+                    '-oUserKnownHostsFile=/dev/null',
+                    '-oStrictHostKeyChecking=no',
+                    username + "@" + hostname,
+                    'cat /etc/os-release',
+                ])
+                os_version = os_string.decode().split('\n')
+                for os_line in os_version:
+                    if os_line.startswith('VERSION='):
+                        break
+                os_version = os_line.split('=')[1].strip('"') + ' _ssh'
+            except subprocess.CalledProcessError:
+                os_version = 'Unavailable'
 
         try:
             model = system_status['rpi_model']
@@ -119,16 +165,30 @@ def uptime(hostname, port, username=default_user, password=default_passwd):
             apt_up = datetime.datetime.fromtimestamp(apt_up_time).strftime('%Y-%m-%d')
         except UnboundLocalError:
             apt_up = ''
+        #except TypeError as exception:
+        #    print(exception)
+        #    apt_up = ''
+        #    print('{} - TypeError: "repr(apt_up_time)" = {}'.format(hostname, repr(apt_up_time)))
         return_value['apt_up'] = apt_up
 
+        git = {}
         try:
             gittime = system_status['last_git_fetch_unixtime']
-            git = datetime.datetime.fromtimestamp(gittime).strftime('%Y-%m-%d')
+            try:
+                git['PyExpLabSys'] = datetime.datetime.fromtimestamp(gittime['PyExpLabSys']).strftime('%Y-%m-%d')
+                git['machines'] = datetime.datetime.fromtimestamp(gittime['machines']).strftime('%Y-%m-%d')
+            except TypeError:
+                # Legacy purposes only
+                git['PyExpLabSys'] = datetime.datetime.fromtimestamp(gittime).strftime('%Y-%m-%d')
+                git['machines'] = 'None'
         except TypeError:
-            git = 'None'
+            git['PyExpLabSys'] = 'None'
+            git['machines'] = 'None'
         except  UnboundLocalError:
-            git = ''
-        return_value['git'] = git
+            git['PyExpLabSys'] = ''
+            git['machines'] = ''
+        return_value['git_pyexplabsys'] = git['PyExpLabSys']
+        return_value['git_machines'] = git['machines']
 
     return return_value
 
@@ -141,6 +201,7 @@ class CheckHost(threading.Thread):
         self.results = results_queue
 
     def run(self):
+        suffixes = ["", ".fys.clients.local"]
         while not self.hosts.empty():
             host = self.hosts.get_nowait()
             try:
@@ -153,16 +214,17 @@ class CheckHost(threading.Thread):
                 attr['apt_up'] = ''
                 attr['location'] = host[3]
                 attr['purpose'] = host[4]
-            host_is_up = host_status(host[1], host[2])
+            for suffix in suffixes:
+                host_is_up = host_status(host[1] + suffix, host[2])
+                if host_is_up:
+                    hostname = host[1] + suffix
+                    break
 
             LOGGER.debug('host_is_up: ' + str(host_is_up))
 
             if host_is_up:
-                if host[1].find('rasppi') > -1:
-                    uptime_val = uptime(host[1], host[2])
-                    LOGGER.debug('uptime_val: ' + str(uptime_val))
-                else:
-                    uptime_val = uptime(host[1], host[2], username='cinf')
+                username, password = credentials.get_user_and_password(hostname)
+                uptime_val = uptime(hostname, host[2], username=username, password=password)
             else:
                 uptime_val = {}
                 uptime_val['up'] = ''
