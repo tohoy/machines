@@ -18,6 +18,10 @@ class FlowControl(threading.Thread):
         self.livesocket = livesocket
         self.running = True
 
+    def stop(self):
+        self.running = False
+        time.sleep(0.3)
+
     def run(self):
         while self.running:
             time.sleep(0.1)
@@ -60,11 +64,14 @@ i = 0
 MFCs = {}
 MKS = mks.MksGSeries(port=port)
 for i in range(1, 8):
-    time.sleep(0.1)
+    time.sleep(0.25)
     serial = MKS.read_serial_number(i)
-    print(serial)
+    print('Device {}: {}'.format(i, serial))
     if serial in devices:
         MFCs[serial] = i
+        print('\tFull scale range: ', MKS.read_full_scale_range(i))
+        print('\tRun hours: ', MKS.read_run_hours(i))
+        print('\tTemperature: {}C'.format(MKS.read_internal_temperature(i)))
     if len(MFCs) == len(devices):
         break
 
@@ -74,4 +81,8 @@ FC = FlowControl(MKS, MFCs, Datasocket, Pushsocket, Livesocket)
 FC.start()
 
 while True:
-    time.sleep(1)
+    try:
+        time.sleep(1)
+    except KeyboardInterrupt:
+        FC.stop()
+        break
