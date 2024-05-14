@@ -1,29 +1,14 @@
 """ Pressure xgs600 controller for microreactors """
-from __future__ import print_function
 import time
 import credentials
 from PyExpLabSys.common.pressure_controller_xgs600 import XGS600Control
 import PyExpLabSys.common.utilities
-#from PyExpLabSys.common.utilities import get_logger
-#from PyExpLabSys.common.utilities import activate_library_logging
 from PyExpLabSys.common.database_saver import ContinuousDataSaver
-from PyExpLabSys.common.supported_versions import python3_only
-PyExpLabSys.common.utilities.ERROR_EMAIL = 'alexkbb@fysik.dtu.dk'
-python3_only(__file__)
+PyExpLabSys.common.utilities.ERROR_EMAIL = 'jejsor@fysik.dtu.dk'
 
-
-MICRO = chr(0x03BC) # Python 3
+MICRO = chr(0x03BC)
 
 #### UPDATE  PRESSURE CONTROL LOGGING ####
-
-#LOGGER = get_logger(MICRO + '-reactorNG XGS600 control', level='ERROR', file_log=True,
-#                    file_name='XGS600_control.log', terminal_log=False, email_on_warnings=False)
-#activate_library_logging('PyExpLabSys.common.microreactor_temperature_control',
-#                         logger_to_inherit_from=LOGGER)
-#activate_library_logging('PyExpLabSys.auxiliary.pid', logger_to_inherit_from=LOGGER)
-
-#LOGGER.warn('Program started')
-
 def main():
     """ Main function """
     port = '/dev/ttyUSB0'
@@ -54,10 +39,10 @@ def main():
     pressure_control.start()
     time.sleep(1)
 
+    # Main activity loop
     while pressure_control.isAlive():
         time.sleep(0.25)
 
-#    LOGGER.info('script ended')
 
 if __name__ == '__main__':
     main()
