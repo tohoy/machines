@@ -1,0 +1,12 @@
+<autostart>
+  <name>AUTOSTART</name>
+  <session>
+    <startdelay>3</startdelay>
+    <command>python pressure_controller.py</command>
+    <name>Pressure controller</name>
+  </session>
+  <session>
+    <startdelay>5</startdelay>
+    <name>Blank</name>
+  </session>
+</autostart>

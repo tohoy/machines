@@ -1,0 +1,4 @@
+id: microreactorNG
+purpose: XGS logger
+
+Reads the XGS 600 and logs interlocked valve states (pressures are logged from computer LabVIEW script).
