@@ -1,0 +1,8 @@
+<autostart>
+  <name>RASPPI51_AUTOSTART</name> <!-- no spaces -->
+  <session>
+    <startdelay>30</startdelay>
+    <command>python socket_server.py</command>
+    <name>MFC data Logger</name>
+  </session>
+</autostart>
