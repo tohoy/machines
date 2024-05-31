@@ -1,4 +1,23 @@
-""" The program will check up status of a list of hosts """
+""" The program will check up status of a list of hosts 
+
+The following keys are saved in a attribute dictionary:
+  up:               How long the host has been on since last restart (days)
+  load:             The CPU and IO utilization averaged over the last 15 minutes
+  git_pyexplabsys:  Timestamp of last git commit (PyExpLabSys.git)
+  git_machines:     Timestamp of last git commit (machines.git)
+  host_temperature: Temperature of host (Celcius)
+  python_version:   Python version
+  model:            Hardware model (raspberry pi only)
+  os_version:       Version of operating system
+  apt_up:           Timestamp of last apt upgrade
+  db_id:            Entry ID in database
+  hostname:         Hostname
+  up_or_down:       True if the host can be pinged (false if not)
+  port:             Port used to connect to host
+  ports:            All ports used by script
+  location:         Location (´id´ in PURPOSE)
+  purpose:          Short description (´purpose´ in PURPOSE)
+"""
 import subprocess
 import datetime
 import telnetlib
@@ -13,9 +32,7 @@ import json
 import MySQLdb
 from PyExpLabSys.common.system_status import SystemStatus
 from PyExpLabSys.common.utilities import get_logger
-from PyExpLabSys.common.supported_versions import python2_and_3
 import credentials
-python2_and_3(__file__)
 
 default_user = credentials.host['default_user']
 default_passwd = credentials.host['default_passwd']
@@ -101,19 +118,25 @@ def uptime(hostname, port, username=default_user, password=default_passwd):
             received = sock.recv(4096)
             status = json.loads(received.decode())
             system_status = status['system_status']
+            socket_status = status['socket_server_status']
             uptime_value = str(int(int(system_status['uptime']['uptime_sec']) / (60*60*24)))
             LOGGER.debug(uptime_value)
             load = str(system_status['load_average']['15m'])
             return_value['up'] = uptime_value
             return_value['load'] = load
+            return_value['ports'] = json.dumps([key for key in socket_status.keys()])
+            return_value['ports'] = [key for key in socket_status.keys()]
         except:
             return_value['up'] = 'Down'
             return_value['load'] = 'Down'
+            return_value['ports'] = []
 
         try:
             if system_status['purpose']['id'] is not None:
                 return_value['location'] = system_status['purpose']['id']
                 return_value['purpose'] = system_status['purpose']['purpose']
+            else:
+                print('NONE {}: {}'.format(hostname, system_status))
         except (KeyError, UnboundLocalError):
             pass
 
@@ -165,10 +188,6 @@ def uptime(hostname, port, username=default_user, password=default_passwd):
             apt_up = datetime.datetime.fromtimestamp(apt_up_time).strftime('%Y-%m-%d')
         except UnboundLocalError:
             apt_up = ''
-        #except TypeError as exception:
-        #    print(exception)
-        #    apt_up = ''
-        #    print('{} - TypeError: "repr(apt_up_time)" = {}'.format(hostname, repr(apt_up_time)))
         return_value['apt_up'] = apt_up
 
         git = {}
@@ -206,7 +225,10 @@ class CheckHost(threading.Thread):
             host = self.hosts.get_nowait()
             try:
                 attr = json.loads(host[5])
-            except TypeError: # Happens if attr is empty
+                print(host, attr)
+            except (TypeError, json.decoder.JSONDecodeError): # Happens if attr is empty
+                # json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0) if attr = ''
+                print(host, 'typeerror')
                 attr = {}
                 attr['git_pyexplabsys'] = ''
                 attr['git_machines'] = ''
