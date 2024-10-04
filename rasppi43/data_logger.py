@@ -17,8 +17,11 @@ class PressureReader(threading.Thread):
     def __init__(self, xgs_instance):
         threading.Thread.__init__(self)
         self.xgs = xgs_instance
-        self.chamberpressure = None
+        pressures = self.xgs.read_all_pressures()
+        print(pressures)
+        self.chamberpressure = pressures[0]
         self.pc_backside = None
+        self.qms_backing = pressures[2]
         self.quit = False
 
     def value(self, channel):
@@ -27,6 +30,8 @@ class PressureReader(threading.Thread):
             return_val = self.chamberpressure
         if channel == 1:
             return_val = self.pc_backside
+        if channel == 2:
+            return_val = self.qms_backing
         return return_val
 
     def run(self):
@@ -34,7 +39,8 @@ class PressureReader(threading.Thread):
             time.sleep(5)
             pressures = self.xgs.read_all_pressures()
             self.chamberpressure = pressures[0]
-            self.pc_backside = pressures[1]
+            #self.pc_backside = pressures[1]
+            self.qms_backing = pressures[2]
 
 
 class TemperatureReader(threading.Thread):
@@ -82,8 +88,7 @@ def main():
     omega.update_range_and_function(6, action='tc', fullrange='K')
     omega.update_range_and_function(7, action='tc', fullrange='K')
 
-    xgs = xgs600.XGS600Driver('/dev/serial/by-id/usb-Prolific_Technology_Inc.' +
-                              '_USB-Serial_Controller_D-if00-port0')
+    xgs = xgs600.XGS600Driver('/dev/serial/by-id/usb-1a86_USB2.0-Ser_-if00-port0')
     print(xgs.read_all_pressures())
 
     pressurereader = PressureReader(xgs)
@@ -100,15 +105,15 @@ def main():
                                                     channel=0)
     loggers['vhp_mass_spec_pressure'].start()
 
-    loggers['vhp_pressure_pc_backside'] = ValueLogger(pressurereader, comp_val=0.1,
-                                                      low_comp=1e-3, comp_type='log',
-                                                      channel=1)
-    loggers['vhp_pressure_pc_backside'].start()
+    loggers['vhp_mass_spec_backing_pressure'] = ValueLogger(pressurereader, comp_val=0.1,
+                                                    low_comp=1e-3, comp_type='log',
+                                                    channel=2)
+    loggers['vhp_mass_spec_backing_pressure'].start()
 
 
     temp_codenames = ['vhp_T_reactor_inlet',
-                      'vhp_T_reactor_outlet',
-                      'vhp_T_reactor_top',
+                      'vhp_T_reactor_outlet',###
+                      'vhp_T_reactor_top',###
                       'vhp_T_mass_spec',
                       'vhp_T_gas_lines',
                       'vhp_T_purifying_reactor',
@@ -119,7 +124,7 @@ def main():
                                                  comp_type='lin', channel=i+1)
         loggers[temp_codenames[i]].start()
 
-    all_codenames = ['vhp_mass_spec_pressure', 'vhp_pressure_pc_backside'] + temp_codenames
+    all_codenames = ['vhp_mass_spec_pressure', 'vhp_mass_spec_backing_pressure'] + temp_codenames
     socket = DateDataPullSocket('vhp', all_codenames, timeouts=1.0)
     socket.start()
 
@@ -130,12 +135,13 @@ def main():
     db_logger.start()
     time.sleep(5)
 
-    while tempreader.isAlive():
+    while tempreader.is_alive():
         time.sleep(0.5)
         for name in all_codenames:
             value = loggers[name].read_value()
+            socket.set_point_now(name, value)
             if loggers[name].read_trigged():
-                print(value)
+                print(name, value)
                 db_logger.save_point_now(name, value)
                 loggers[name].clear_trigged()
 
