@@ -4,7 +4,7 @@ import threading
 import time
 import logging
 import socket
-import numpy as np # pylint: disable=import-error
+import numpy as np  # pylint: disable=import-error
 from PyExpLabSys.common.database_saver import ContinuousDataSaver
 from PyExpLabSys.common.sockets import LiveSocket
 from PyExpLabSys.common.sockets import DateDataPullSocket
@@ -12,10 +12,13 @@ from PyExpLabSys.common.value_logger import ValueLogger
 import PyExpLabSys.drivers.dataq_comm as dataq
 from PyExpLabSys.common.supported_versions import python2_and_3
 import credentials
+
 python2_and_3(__file__)
+
 
 class SocketReaderClass(threading.Thread):
     """ Read the wanted socket """
+
     def __init__(self):
         threading.Thread.__init__(self)
         self.current_value = None
@@ -30,17 +33,19 @@ class SocketReaderClass(threading.Thread):
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.settimeout(1)
             try:
-                #sock.sendto(b'read_pressure', ('10.54.6.120', 9995))
+                # sock.sendto(b'read_pressure', ('10.54.6.120', 9995))
                 sock.sendto(b'read_pressure', ('10.54.7.179', 9995))
                 received = sock.recv(1024)
                 received = received.decode('ascii')
                 self.current_value = float(received)
             except (socket.timeout, ValueError) as e:
-                print(e,"SocketReader") # LOG THIS
+                print(e, "SocketReader")  # LOG THIS
             time.sleep(1)
+
 
 class SocketReaderClassPC(threading.Thread):
     """ Read the wanted socket """
+
     def __init__(self):
         threading.Thread.__init__(self)
         self.current_value = None
@@ -58,15 +63,16 @@ class SocketReaderClassPC(threading.Thread):
                 sock.sendto(b'M17214588A#raw', ('10.54.7.24', 9000))
                 received = sock.recv(1024)
                 received = received.decode('ascii')
-                value = received[received.find(',')+1:]
+                value = received[received.find(',') + 1 :]
                 self.current_value = float(value)
             except (socket.timeout, ValueError) as e:
-                print(e,"SocketReaderPC") # LOG THIS
+                print(e, "SocketReaderPC")  # LOG THIS
             time.sleep(1)
 
 
 class Reader(threading.Thread):
     """ Pressure reader """
+
     def __init__(self, dataq_instance):
         threading.Thread.__init__(self)
         self.dataq = dataq_instance
@@ -105,19 +111,22 @@ class Reader(threading.Thread):
             values = values / average_length
             print(values)
             # The "+ 0.33" is a temp solve for not being able to fully re-zero the gauge
-            self.pressure['medium'] = (1.0/5) * (values[0] - 0.1 + 0.33) * 7910.55729 - 15.8
+            self.pressure['medium'] = (1.0 / 5) * (
+                values[0] - 0.1 + 0.33
+            ) * 7910.55729 - 15.8
             # The "- 0.05" is a temp solv for ... -||- ...
-            self.pressure['high'] = (1.0/5) * (values[1] - 0.1 - 0.05) * 206842.719
-            self.pressure['bpr'] = (-1.0/10) * values[2] * 2068.42719
+            self.pressure['high'] = (1.0 / 5) * (values[1] - 0.1 - 0.05) * 206842.719
+            self.pressure['bpr'] = (-1.0 / 10) * values[2] * 2068.42719
             time.sleep(0.2)
+
 
 def main():
     """ Main function """
     logging.basicConfig(filename="logger.txt", level=logging.ERROR)
     logging.basicConfig(level=logging.ERROR)
 
-    #socket_reader = SocketReaderClass()
-    #socket_reader.start()
+    # socket_reader = SocketReaderClass()
+    # socket_reader.start()
 
     socket_reader_pc = SocketReaderClassPC()
     socket_reader_pc.start()
@@ -132,40 +141,51 @@ def main():
 
     time.sleep(2.5)
 
-    #codenames = ['vhp_medium_pressure', 'vhp_high_pressure', 'vhp_pressure_bpr_backside',
+    # codenames = ['vhp_medium_pressure', 'vhp_high_pressure', 'vhp_pressure_bpr_backside',
     #             'vhp_low_pressure', 'vhp_pressure_controller']
-    codenames = ['vhp_medium_pressure', 'vhp_high_pressure', 'vhp_pressure_bpr_backside',
-                 'vhp_pressure_controller']
+    codenames = [
+        'vhp_medium_pressure',
+        'vhp_high_pressure',
+        'vhp_pressure_bpr_backside',
+        'vhp_pressure_controller',
+    ]
 
     loggers = {}
-    loggers[codenames[0]] = ValueLogger(reader, comp_val=20, maximumtime=600,
-                                        comp_type='lin', channel=1)
+    loggers[codenames[0]] = ValueLogger(
+        reader, comp_val=20, maximumtime=600, comp_type='lin', channel=1
+    )
     loggers[codenames[0]].start()
-    loggers[codenames[1]] = ValueLogger(reader, comp_val=500, maximumtime=600,
-                                        comp_type='lin', channel=2)
+    loggers[codenames[1]] = ValueLogger(
+        reader, comp_val=500, maximumtime=600, comp_type='lin', channel=2
+    )
     loggers[codenames[1]].start()
-    loggers[codenames[2]] = ValueLogger(reader, comp_val=20, maximumtime=600,
-                                        comp_type='lin', channel=3)
+    loggers[codenames[2]] = ValueLogger(
+        reader, comp_val=20, maximumtime=600, comp_type='lin', channel=3
+    )
     loggers[codenames[2]].start()
 
-    #loggers[codenames[3]] = ValueLogger(socket_reader, comp_val=0.01, maximumtime=300,
+    # loggers[codenames[3]] = ValueLogger(socket_reader, comp_val=0.01, maximumtime=300,
     #                                    comp_type='log')
-    #loggers[codenames[3]].start()
-    loggers[codenames[3]] = ValueLogger(socket_reader_pc, comp_val=1, maximumtime=300,
-                                        comp_type='lin')
+    # loggers[codenames[3]].start()
+    loggers[codenames[3]] = ValueLogger(
+        socket_reader_pc, comp_val=1, maximumtime=300, comp_type='lin'
+    )
     loggers[codenames[3]].start()
 
     livesocket = LiveSocket('VHP Gas system pressure', codenames)
     livesocket.start()
 
-    pull_socket = DateDataPullSocket('VHP Gas system pressure', codenames,
-                                     timeouts=[2.0] * len(loggers))
+    pull_socket = DateDataPullSocket(
+        'VHP Gas system pressure', codenames, timeouts=[2.0] * len(loggers)
+    )
     pull_socket.start()
 
-    db_logger = ContinuousDataSaver(continuous_data_table='dateplots_vhp_setup',
-                                    username=credentials.user,
-                                    password=credentials.passwd,
-                                    measurement_codenames=codenames)
+    db_logger = ContinuousDataSaver(
+        continuous_data_table='dateplots_vhp_setup',
+        username=credentials.user,
+        password=credentials.passwd,
+        measurement_codenames=codenames,
+    )
     db_logger.start()
 
     while reader.is_alive():
@@ -179,6 +199,7 @@ def main():
                 print(name + ': ' + str(value))
                 db_logger.save_point_now(name, value)
                 loggers[name].clear_trigged()
+
 
 if __name__ == '__main__':
     main()
