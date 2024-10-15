@@ -30,12 +30,13 @@ class SocketReaderClass(threading.Thread):
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.settimeout(1)
             try:
-                sock.sendto(b'read_pressure', ('10.54.6.118', 9995))
+                #sock.sendto(b'read_pressure', ('10.54.6.120', 9995))
+                sock.sendto(b'read_pressure', ('10.54.7.179', 9995))
                 received = sock.recv(1024)
                 received = received.decode('ascii')
                 self.current_value = float(received)
             except (socket.timeout, ValueError) as e:
-                print(e) # LOG THIS
+                print(e,"SocketReader") # LOG THIS
             time.sleep(1)
 
 class SocketReaderClassPC(threading.Thread):
@@ -60,9 +61,8 @@ class SocketReaderClassPC(threading.Thread):
                 value = received[received.find(',')+1:]
                 self.current_value = float(value)
             except (socket.timeout, ValueError) as e:
-                print(e) # LOG THIS
+                print(e,"SocketReaderPC") # LOG THIS
             time.sleep(1)
-            print('PC Value: ' + str(value))
 
 
 class Reader(threading.Thread):
@@ -103,8 +103,11 @@ class Reader(threading.Thread):
                 values[1] += measurements[2]
                 values[2] += measurements[3]
             values = values / average_length
-            self.pressure['medium'] = (1.0/5) * (values[0] - 0.1) * 7910.55729 - 15.8
-            self.pressure['high'] = (1.0/5) * (values[1] - 0.1) * 206842.719
+            print(values)
+            # The "+ 0.33" is a temp solve for not being able to fully re-zero the gauge
+            self.pressure['medium'] = (1.0/5) * (values[0] - 0.1 + 0.33) * 7910.55729 - 15.8
+            # The "- 0.05" is a temp solv for ... -||- ...
+            self.pressure['high'] = (1.0/5) * (values[1] - 0.1 - 0.05) * 206842.719
             self.pressure['bpr'] = (-1.0/10) * values[2] * 2068.42719
             time.sleep(0.2)
 
@@ -113,8 +116,8 @@ def main():
     logging.basicConfig(filename="logger.txt", level=logging.ERROR)
     logging.basicConfig(level=logging.ERROR)
 
-    socket_reader = SocketReaderClass()
-    socket_reader.start()
+    #socket_reader = SocketReaderClass()
+    #socket_reader.start()
 
     socket_reader_pc = SocketReaderClassPC()
     socket_reader_pc.start()
@@ -129,8 +132,10 @@ def main():
 
     time.sleep(2.5)
 
+    #codenames = ['vhp_medium_pressure', 'vhp_high_pressure', 'vhp_pressure_bpr_backside',
+    #             'vhp_low_pressure', 'vhp_pressure_controller']
     codenames = ['vhp_medium_pressure', 'vhp_high_pressure', 'vhp_pressure_bpr_backside',
-                 'vhp_low_pressure', 'vhp_pressure_controller']
+                 'vhp_pressure_controller']
 
     loggers = {}
     loggers[codenames[0]] = ValueLogger(reader, comp_val=20, maximumtime=600,
@@ -143,12 +148,12 @@ def main():
                                         comp_type='lin', channel=3)
     loggers[codenames[2]].start()
 
-    loggers[codenames[3]] = ValueLogger(socket_reader, comp_val=0.01, maximumtime=300,
-                                        comp_type='log')
-    loggers[codenames[3]].start()
-    loggers[codenames[4]] = ValueLogger(socket_reader_pc, comp_val=1, maximumtime=300,
+    #loggers[codenames[3]] = ValueLogger(socket_reader, comp_val=0.01, maximumtime=300,
+    #                                    comp_type='log')
+    #loggers[codenames[3]].start()
+    loggers[codenames[3]] = ValueLogger(socket_reader_pc, comp_val=1, maximumtime=300,
                                         comp_type='lin')
-    loggers[codenames[4]].start()
+    loggers[codenames[3]].start()
 
     livesocket = LiveSocket('VHP Gas system pressure', codenames)
     livesocket.start()
@@ -163,12 +168,13 @@ def main():
                                     measurement_codenames=codenames)
     db_logger.start()
 
-    while reader.isAlive():
+    while reader.is_alive():
         time.sleep(1)
         for name in codenames:
             value = loggers[name].read_value()
             livesocket.set_point_now(name, value)
             pull_socket.set_point_now(name, value)
+            print(name + '::: ' + str(value))
             if loggers[name].read_trigged():
                 print(name + ': ' + str(value))
                 db_logger.save_point_now(name, value)
