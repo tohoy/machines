@@ -1,0 +1,4 @@
+id: MUNIN_MFC
+purpose mass flow and pressure regulation
+
+This raspberry pi is used to communicate with BROOKS analog massflow controllers. These are a collection of 5964, 5850EM and 5890S series. An arduino nano every is used to convert the analog to digital signals. The pi is also used to communicate with the digital Bronkhorst pressure controller.
