@@ -13,15 +13,16 @@ from PyExpLabSys.common.sockets import DateDataPullSocket
 
 class CursesTui(threading.Thread):
     """ Tui for controlling the bakeout boxx"""
-    def __init__(self, baker_instance):
+    def __init__(self, baker_instance,stdscr):
         threading.Thread.__init__(self)
         self.baker = baker_instance
         self.watchdog = baker_instance.watchdog
-        self.screen = curses.initscr()
-        curses.noecho()
-        curses.cbreak()
+        self.screen=stdscr # get this from the curses wrapper
+        #self.screen = curses.initscr()
+        #curses.noecho()
+        #curses.cbreak()
         curses.curs_set(False)
-        self.screen.keypad(1)
+        #self.screen.keypad(1)
         self.screen.nodelay(1)
 
     def run(self):
@@ -48,7 +49,7 @@ class CursesTui(threading.Thread):
                                "Channel duty cycles")
             for i in range(1, 7):
                 self.screen.addstr(13, 6*i,
-                                   str(round(self.baker.dutycycles[i-1]),2))
+                                   str(round(self.baker.dutycycles[i-1],2)))
             
             if self.baker.run_ramp == True:
                 self.screen.addstr(15, 2, str(self.baker.ramp.present()))
@@ -244,7 +245,7 @@ class Bakeout(threading.Thread):
                     self.deactivate(i)
 
 
-def main():
+def main(stdscr):
     """ main function"""
     wp.wiringPiSetup()
     watchdog = Watchdog()
@@ -258,7 +259,7 @@ def main():
     datasocket.start()
     baker = Bakeout(watchdog, datasocket)
     baker.start()
-    tui = CursesTui(baker)
+    tui = CursesTui(baker,stdscr)
     #tui.daemon = True
     tui.start()
     while not baker.quit:
@@ -268,4 +269,4 @@ def main():
     baker.quit = True
 
 if __name__ == '__main__':
-    curses.wrapper(main())
+    curses.wrapper(main) # the wrapper helps ensure that "If the application raises an exception, this function will restore the terminal to a sane state before re-raising the exception and generating a traceback"
