@@ -6,6 +6,7 @@ import sys
 import threading
 import curses
 import wiringpi as wp
+from importlib import reload
 
 #from PyExpLabSys.common.loggers import ContinuousLogger
 from PyExpLabSys.common.sockets import DateDataPullSocket
