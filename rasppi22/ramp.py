@@ -9,6 +9,7 @@ import numpy as np
 
 class ramp:
     def __init__(self,):
+        self.finished=False
         date_str = "2014-10-30 13:30:00"
         time_tuple = time.strptime(date_str, "%Y-%m-%d %H:%M:%S")
         start = time.mktime(time_tuple)
@@ -30,6 +31,7 @@ class ramp:
             self.dutycycles = [0.7,0.0,0.0,1.0,0.0,0.7]
         elif self.end_time < t0:
             self.dutycycles = [0.0,0.0,0.0,0.0,0.0,0.0]
+            self.finished=True
         return self.dutycycles
 
 if __name__ == '__main__':

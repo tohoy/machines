@@ -59,7 +59,7 @@ class CursesTui(threading.Thread):
                                    "                                ")  
             
             self.screen.addstr(18, 2,
-                               "l: load ramp from ramp.py     ")
+                               "l: load ramp from ramp.py, c:clear from ramp state(checks if done)")
             self.screen.addstr(19, 2,
                                "q: quit program       ")
             n = self.screen.getch()
@@ -93,6 +93,9 @@ class CursesTui(threading.Thread):
                 self.baker.modify_dutycycle(6, -0.1)
             elif n == ord('l'):
                 self.baker.load_ramp()
+            elif n == ord('c'):
+                if self.baker.ramp.finished:
+                    self.baker.run_ramp=False
             elif n == ord('q'):
                 self.baker.quit = True
                 self.screen.addstr(2, 2, 'Quitting....')
@@ -227,6 +230,7 @@ class Bakeout(threading.Thread):
             self.datasocket.set_point_now('stm312_bakeoutbox', self.dutycycles)
             if self.run_ramp == True:
                 self.set_all_dutycycles(self.ramp.present())
+                    
             try:
                 for i in range(1, 7):
                     if (1.0*cycle/totalcycles) < self.dutycycles[i-1]:
