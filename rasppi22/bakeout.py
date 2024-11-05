@@ -48,7 +48,7 @@ class CursesTui(threading.Thread):
                                "Channel duty cycles")
             for i in range(1, 7):
                 self.screen.addstr(13, 6*i,
-                                   str(self.baker.dutycycles[i-1]))
+                                   str(round(self.baker.dutycycles[i-1]),2))
             
             if self.baker.run_ramp == True:
                 self.screen.addstr(15, 2, str(self.baker.ramp.present()))
@@ -236,10 +236,10 @@ class Bakeout(threading.Thread):
                 time.sleep(1)
             except:
                 self.quit = True
-                print( "Program terminated by user")
-                print( sys.exc_info()[0])
-                print( sys.exc_info()[1])
-                print( sys.exc_info()[2])
+                print("Program terminated by user")
+                print(sys.exc_info()[0])
+                print(sys.exc_info()[1])
+                print(sys.exc_info()[2])
                 for i in range(0, 7):
                     self.deactivate(i)
 
@@ -268,4 +268,4 @@ def main():
     baker.quit = True
 
 if __name__ == '__main__':
-    main()
+    curses.wrapper(main())
