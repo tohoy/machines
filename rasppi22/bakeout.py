@@ -28,43 +28,55 @@ class CursesTui(threading.Thread):
 
     def run(self):
         while not self.baker.quit:
-            self.screen.addstr(2, 2, 'Running')
+            text_line=0
+            self.screen.addstr(text_line := text_line + 2, 2, 'Running')
+            status_line=text_line
 
-            self.screen.addstr(4, 2,
+            self.screen.addstr(text_line := text_line + 2, 2,
                                "Watchdog TTL: {0:.0f}  ".format(
                     self.watchdog.time_to_live))
-            self.screen.addstr(5, 2,
+            self.screen.addstr(text_line := text_line + 1, 2,
                                "Watchdog Timer: {0:.1f}".format(
                     time.time() - self.watchdog.timer))
-            self.screen.addstr(6, 2,
+            self.screen.addstr(text_line := text_line + 1, 2,
                                "Watchdog safe: {}    ".format(
                     self.watchdog.watchdog_safe))
 
-            self.screen.addstr(8, 2,
+            self.screen.addstr(text_line := text_line + 2, 2,
                                'Current channel status:')
+            text_line= text_line + 1
             for i in range(1, 7):
-                self.screen.addstr(9, 6*i,
+                self.screen.addstr(text_line, 6*i,
                                    str(wp.digitalRead(i)))
 
-            self.screen.addstr(12, 2,
+            self.screen.addstr(text_line := text_line + 3, 2,
                                "Channel duty cycles")
+            text_line= text_line + 1
             for i in range(1, 7):
-                self.screen.addstr(13, 6*i,
+                self.screen.addstr(text_line, 6*i,
                                    str(round(self.baker.dutycycles[i-1],2)))
             
             if self.baker.run_ramp == True:
-                self.screen.addstr(15, 2, str(self.baker.ramp.present()))
+                time_tuple_back = time.localtime(self.baker.ramp.end_time)
+                date_str = time.strftime("%Y-%m-%d %H:%M:%S", time_tuple_back)
+                self.screen.addstr(text_line := text_line + 2, 2, f'Ramp running until {date_str}, which is {(self.baker.ramp.end_time-time.time())/60/60:.3f} hours from now')
+                self.screen.addstr(text_line := text_line + 1, 2, f'currently requested dutycycles:')
+                self.screen.addstr(text_line := text_line + 1, 2, str(self.baker.ramp.present()))
             else:
-                self.screen.addstr(15, 2,
-                                   "                                ")  
+                text_line= text_line + 1
+                for i in range(3): # clear the lines created for ramping
+                    self.screen.move(text_line := text_line + 1, 0)
+                    self.screen.clrtoeol()
+                #self.screen.addstr(text_line := text_line + 1, 2,
+                #                   "                                ")  
             
-            self.screen.addstr(18, 2,
+            self.screen.addstr(text_line := text_line + 3, 2,
                                "l: load ramp from ramp.py, c:clear from ramp state(checks if done)")
-            self.screen.addstr(19, 2,
+            self.screen.addstr(text_line := text_line + 1, 2,
                                "q: quit program       ")
             n = self.screen.getch()
 
-            self.screen.addstr(20, 2,
+            self.screen.addstr(text_line := text_line + 1, 2,
                                "Last key stroke: {}     ".format(n))
 
             if n == ord('1'):
@@ -98,7 +110,7 @@ class CursesTui(threading.Thread):
                     self.baker.run_ramp=False
             elif n == ord('q'):
                 self.baker.quit = True
-                self.screen.addstr(2, 2, 'Quitting....')
+                self.screen.addstr(status_line, 2, 'Quitting....')
 
             self.screen.refresh()
             time.sleep(0.2)

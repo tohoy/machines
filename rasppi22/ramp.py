@@ -16,7 +16,7 @@ class ramp:
         #start = time.time()
         self.start_time = start
         
-        date_str = "2014-10-30 23:59:59"
+        date_str = "2024-11-05 23:59:59"
         time_tuple = time.strptime(date_str, "%Y-%m-%d %H:%M:%S")
         end = time.mktime(time_tuple)
         #end = self.start_time + 3600*3
