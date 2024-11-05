@@ -5,7 +5,7 @@ import time
 import sys
 import threading
 import curses
-import wiringpi2 as wp
+import wiringpi as wp
 
 #from PyExpLabSys.common.loggers import ContinuousLogger
 from PyExpLabSys.common.sockets import DateDataPullSocket
@@ -228,20 +228,20 @@ class Bakeout(threading.Thread):
             try:
                 for i in range(1, 7):
                     if (1.0*cycle/totalcycles) < self.dutycycles[i-1]:
-                        baker.activate(i)
+                        self.activate(i)
                     else:
-                        baker.deactivate(i)
+                        self.deactivate(i)
                 cycle = cycle + 1
                 cycle = cycle % totalcycles
                 time.sleep(1)
             except:
                 self.quit = True
-                print "Program terminated by user"
-                print sys.exc_info()[0]
-                print sys.exc_info()[1]
-                print sys.exc_info()[2]
+                print( "Program terminated by user")
+                print( sys.exc_info()[0])
+                print( sys.exc_info()[1])
+                print( sys.exc_info()[2])
                 for i in range(0, 7):
-                    baker.deactivate(i)
+                    self.deactivate(i)
 
 
 def main():
