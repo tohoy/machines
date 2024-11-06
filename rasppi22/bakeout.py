@@ -7,6 +7,7 @@ import threading
 import curses
 import wiringpi as wp
 from importlib import reload
+import datetime
 
 #from PyExpLabSys.common.loggers import ContinuousLogger
 from PyExpLabSys.common.sockets import DateDataPullSocket
@@ -59,9 +60,27 @@ class CursesTui(threading.Thread):
             if self.baker.run_ramp == True:
                 time_tuple_back = time.localtime(self.baker.ramp.end_time)
                 date_str = time.strftime("%Y-%m-%d %H:%M:%S", time_tuple_back)
-                self.screen.addstr(text_line := text_line + 2, 2, f'Ramp running until {date_str}, which is {(self.baker.ramp.end_time-time.time())/60/60:.3f} hours from now')
-                self.screen.addstr(text_line := text_line + 1, 2, f'currently requested dutycycles:')
-                self.screen.addstr(text_line := text_line + 1, 2, str(self.baker.ramp.present()))
+                
+                seconds_diff=self.baker.ramp.end_time-time.time()
+                if self.baker.ramp.finished:
+                    seconds_diff=-seconds_diff
+                    
+                time_diff = datetime.timedelta(seconds=seconds_diff)
+
+                # Extract days, hours, minutes, and seconds
+                days = time_diff.days
+                hours, remainder = divmod(time_diff.seconds, 3600)
+                minutes, seconds = divmod(remainder, 60)
+
+                # Print the result in a user-friendly format
+                if self.baker.ramp.finished:
+                    ramp_status_text=f'Ramp finished on {date_str}, which is {days} days, {hours} hours, {minutes} minutes, and {seconds} seconds ago'
+                else:
+                    ramp_status_text=f'Ramp running until {date_str}, which is {days} days, {hours} hours, {minutes} minutes, and {seconds} seconds from now'
+                
+                self.screen.addstr(text_line := text_line + 2, 2, ramp_status_text)
+                self.screen.addstr(text_line := text_line + 1, 2, f'Currently requested dutycycles:')
+                self.screen.addstr(text_line := text_line + 1, 7, str(self.baker.ramp.present()))
             else:
                 text_line= text_line + 1
                 for i in range(3): # clear the lines created for ramping
@@ -71,7 +90,11 @@ class CursesTui(threading.Thread):
                 #                   "                                ")  
             
             self.screen.addstr(text_line := text_line + 3, 2,
-                               "l: load ramp from ramp.py, c:clear from ramp state(checks if done)")
+                               "l: load ramp from ramp.py, ")
+            self.screen.addstr(text_line := text_line + 1, 2,
+                               "c: clear from ramp state(checks if done)")
+            self.screen.addstr(text_line := text_line + 1, 2,
+                               "s: forcefully stop the ramp       ")
             self.screen.addstr(text_line := text_line + 1, 2,
                                "q: quit program       ")
             n = self.screen.getch()
@@ -108,6 +131,9 @@ class CursesTui(threading.Thread):
             elif n == ord('c'):
                 if self.baker.ramp.finished:
                     self.baker.run_ramp=False
+            elif n == ord('s'):
+                self.baker.run_ramp=False
+                self.baker.dutycycles = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
             elif n == ord('q'):
                 self.baker.quit = True
                 self.screen.addstr(status_line, 2, 'Quitting....')
