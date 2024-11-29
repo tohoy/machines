@@ -1,0 +1,8 @@
+<autostart>
+  <name>AUTOSTART_Ejler</name>
+  <session>
+    <startdelay>30</startdelay>
+    <command>python office_logger.py</command>
+    <name>Temp/hum logger</name>
+  </session>
+</autostart>
