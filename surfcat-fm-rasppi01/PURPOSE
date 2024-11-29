@@ -1,0 +1,4 @@
+id: 313/231 temp logger
+purpose: Log temperature and humidity in B313 room 231
+
+This Rasberry Pi is an office logger connected via wireless. Building 313 room 231.
