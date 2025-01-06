@@ -20,7 +20,7 @@ SAVE_PRESSURE = False
 SAVE_HOURS = 48
 
 class MuxReader(threading.Thread):
-    """ Analog reader """
+    """ Analog reader, currently not in use """
     def __init__(self, mux):
         threading.Thread.__init__(self)
         self.mux = mux
@@ -47,8 +47,10 @@ class PressureReader(threading.Thread):
     def __init__(self, xgs):
         threading.Thread.__init__(self)
         self.xgs = xgs
+        self.mercedes_pressure = None
         self.pressure = None
         self.rough = None
+        self.mercedes_rough = None
         self.quit = False
         self.ttl = 20
 
@@ -58,9 +60,13 @@ class PressureReader(threading.Thread):
         if self.ttl < 0:
             self.quit = True
         if channel == 0:
-            return self.pressure
+            return self.mercedes_pressure
         elif channel == 1:
+            return self.pressure
+        elif channel == 2:
             return self.rough
+        elif channel == 3:
+            return self.mercedes_rough
 
     def run(self):
         while not self.quit:
@@ -68,15 +74,25 @@ class PressureReader(threading.Thread):
             time.sleep(0.5)
             press = self.xgs.read_all_pressures()
             try:
-                self.pressure = press[0]
+                self.mercedes_pressure = press[0]
             except IndexError:
-                print("av")
+                print("Mercedes pressure read error")
+                self.mercedes_pressure = 0
+            try:
+                self.pressure = press[1]
+            except IndexError:
+                print("Pressure read error")
                 self.pressure = 0
             try:
-                self.rough = press[1]
+                self.rough = press[2]
             except IndexError:
-                print("Rough read error")
+                print("Rough pressure read error")
                 self.rough = 0
+            try:
+                self.mercedes_rough = press[3]
+            except IndexError:
+                print("Mercedes rough pressure read error")
+                self.mercedes_rough = 0
 
 def main():
     """ Main code """
@@ -94,14 +110,18 @@ def main():
     time.sleep(2.5)
 
     #codenames = ['volvo_pressure', 'volvo_temperature']
-    codenames = ['volvo_pressure', 'volvo_rough_pressure']
+    codenames = ['volvo_mercedes_pressure', 'volvo_pressure', 'volvo_rough_pressure', 'volvo_mercedes_rough_pressure']
     loggers = {}
     loggers[codenames[0]] = ValueLogger(pressure, comp_val=0.1, comp_type='log', low_comp=1e-9, channel=0)
     loggers[codenames[0]].start()
-    loggers[codenames[1]] = ValueLogger(pressure, comp_val=0.1, comp_type='log', low_comp=1e-11, channel=1)
+    loggers[codenames[1]] = ValueLogger(pressure, comp_val=0.1, comp_type='log', low_comp=1e-9, channel=1)
     loggers[codenames[1]].start()
     #loggers[codenames[2]] = ValueLogger(analog_measurement, comp_val=0.5, comp_type='lin')
     #loggers[codenames[2]].start()
+    loggers[codenames[2]] = ValueLogger(pressure, comp_val=0.1, comp_type='log', low_comp=1e-11, channel=2)
+    loggers[codenames[2]].start()
+    loggers[codenames[3]] = ValueLogger(pressure, comp_val=0.1, comp_type='log', low_comp=1e-11, channel=3)
+    loggers[codenames[3]].start()
 
     socket = DateDataPullSocket('Volvo data logger', codenames, timeouts=1.0)
     socket.start()
