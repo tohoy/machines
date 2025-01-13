@@ -7,14 +7,16 @@ from PyExpLabSys.common.value_logger import ValueLogger
 from PyExpLabSys.common.database_saver import ContinuousDataSaver
 from PyExpLabSys.common.sockets import DateDataPullSocket
 from PyExpLabSys.common.sockets import LiveSocket
-from  ABE_ADCPi import ADCPi
-from ABE_helpers import ABEHelpers
-from PyExpLabSys.common.supported_versions import python2_and_3
+from ADCPi import ADCPi
+from PyExpLabSys.common.supported_versions import python3_only
 import credentials
-python2_and_3(__file__)
+
+python3_only(__file__)
+
 
 class PressureReader(threading.Thread):
     """ Read Cooling water pressure """
+
     def __init__(self, adc):
         threading.Thread.__init__(self)
         self.adc = adc
@@ -29,17 +31,16 @@ class PressureReader(threading.Thread):
         time.sleep(0.2)
         while not self.quit:
             voltage = self.adc.read_voltage(1) * 8 / 5
-            pressure = 10**(voltage - 5)
+            pressure = 10 ** (voltage - 5)
             self.pressure = pressure
+
 
 def main():
     """ Main function """
     logging.basicConfig(filename="logger.txt", level=logging.ERROR)
     logging.basicConfig(level=logging.ERROR)
 
-    i2c_helper = ABEHelpers()
-    bus = i2c_helper.get_smbus()
-    adc_instance = ADCPi(bus, 0x68, 0x69, 18)
+    adc_instance = ADCPi(0x68, 0x69, 18)
 
     pressurereader = PressureReader(adc_instance)
     pressurereader.daemon = True
@@ -48,19 +49,22 @@ def main():
     codenames = ['chemlab312_sample_storage_pressure']
     loggers = {}
     for i in range(0, 1):
-        loggers[codenames[i]] = ValueLogger(pressurereader, comp_val=0.05, comp_type='log')
+        loggers[codenames[i]] = ValueLogger(
+            pressurereader, comp_val=0.05, comp_type='log'
+        )
         loggers[codenames[i]].start()
-    socket = DateDataPullSocket('chemlab312_sample_storage',
-                                codenames, timeouts=[2.0])
+    socket = DateDataPullSocket('chemlab312_sample_storage', codenames, timeouts=[2.0])
     socket.start()
 
     live_socket = LiveSocket('chemlab312_sample_storage', codenames)
     live_socket.start()
 
-    db_logger = ContinuousDataSaver(continuous_data_table='dateplots_chemlab312',
-                                    username=credentials.user,
-                                    password=credentials.passwd,
-                                    measurement_codenames=codenames)
+    db_logger = ContinuousDataSaver(
+        continuous_data_table='dateplots_chemlab312',
+        username=credentials.user,
+        password=credentials.passwd,
+        measurement_codenames=codenames,
+    )
     db_logger.start()
 
     time.sleep(5)
@@ -76,6 +80,6 @@ def main():
                 db_logger.save_point_now(name, value)
                 loggers[name].clear_trigged()
 
+
 if __name__ == '__main__':
     main()
-
