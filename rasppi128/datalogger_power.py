@@ -13,21 +13,21 @@ import credentials
 
 PREFIX = 'SunLab_netio'
 CODENAMES = {
-    'Voltage': 0.5,
-    'TotalLoad': 10,
-    'Frequency': 0.1,
-    '1_Load': 5,
-    '1_Phase': 5,
-    '1_PowerFactor': 5,
-    '2_Load': 5,
-    '2_Phase': 5,
-    '2_PowerFactor': 5,
-    '3_Load': 5,
-    '3_Phase': 5,
-    '3_PowerFactor': 5,
-    '4_Load': 5,
-    '4_Phase': 5,
-    '4_PowerFactor': 5,
+    'Voltage': 1.5,
+    'TotalLoad': 30,
+    'Frequency': 0.3,
+    '1_Load': 30,
+    '1_Phase': 15,
+    '1_PowerFactor': 0.2,
+    '2_Load': 30,
+    '2_Phase': 15,
+    '2_PowerFactor': 0.2,
+    '3_Load': 30,
+    '3_Phase': 15,
+    '3_PowerFactor': 0.2,
+    '4_Load': 30,
+    '4_Phase': 15,
+    '4_PowerFactor': 0.2,
 }
 CODENAMES = {f'{PREFIX}_{codename}': comp_val for codename, comp_val in CODENAMES.items()}
 
