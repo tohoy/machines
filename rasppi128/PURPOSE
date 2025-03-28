@@ -1,4 +1,4 @@
-id: b311 lounge
-purpose: Temperature + humidity
+id: SunLab EQE
+purpose: Power monitor
 
-Temperature and humidity measurement in lounge, b311
+Power quality to EQE setup(s) in SunLab
